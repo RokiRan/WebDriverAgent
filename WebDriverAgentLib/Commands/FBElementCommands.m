@@ -66,7 +66,7 @@
     [[FBRoute POST:@"/element/:uuid/value"] respondWithTarget:self action:@selector(handleSetValue:)],
     [[FBRoute POST:@"/element/:uuid/click"] respondWithTarget:self action:@selector(handleClick:)],
     [[FBRoute POST:@"/element/:uuid/clear"] respondWithTarget:self action:@selector(handleClear:)],
-//    [[FBRoute POST:@"/element/:uuid/copy"] respondWithTarget:self action:@selector(handleSetClipboardText:)],
+    [[FBRoute POST:@"/element/:uuid/backspaseDelete"] respondWithTarget:self action:@selector(handleDeleteValue:)],
     // W3C element screenshot
     [[FBRoute GET:@"/element/:uuid/screenshot"] respondWithTarget:self action:@selector(handleElementScreenshot:)],
     // JSONWP element screenshot
@@ -229,6 +229,40 @@
   }
   return FBResponseWithOK();
 }
+// 模拟删除键
++ (id<FBResponsePayload>)handleDeleteValue:(FBRouteRequest *)request
+{
+    FBElementCache *elementCache = request.session.elementCache;
+    XCUIElement *element = [elementCache elementForUUID:(NSString *)request.parameters[@"uuid"]];
+    NSNumber *deleteCount = request.arguments[@"value"];
+    
+    if (!deleteCount || ![deleteCount isKindOfClass:[NSNumber class]]) {
+        return FBResponseWithStatus([FBCommandStatus invalidArgumentErrorWithMessage:@"'value' parameter is missing or invalid" traceback:nil]);
+    }
+    
+    NSUInteger count = [deleteCount unsignedIntegerValue];
+    
+    if (count == 0) {
+        return FBResponseWithOK();
+    }
+    
+    XCUIElementType elementType = [(id<FBXCElementSnapshot>)element.lastSnapshot elementType];
+    
+    if (elementType == XCUIElementTypeTextField || elementType == XCUIElementTypeTextView) {
+        [element tap];  // Activate the element
+        
+        for (NSUInteger i = 0; i < count; i++) {
+            [element typeText:@"\b"];
+        }
+        
+        return FBResponseWithOK();
+    }
+    
+    return FBResponseWithStatus([FBCommandStatus invalidArgumentErrorWithMessage:@"Deletion is not supported for the specified element type" traceback:nil]);
+}
+
+
+
 
 + (id<FBResponsePayload>)handleClick:(FBRouteRequest *)request
 {
